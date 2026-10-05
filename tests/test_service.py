@@ -982,3 +982,14 @@ async def test_vpn_server_writes_nvram() -> None:
     assert any(
         write.get("vpn_serverx_start_x") == 0 for write in MockSshClient.writes
     )
+
+
+def test_radio_bands_from_nband() -> None:
+    from asuswrt_mcp.service import radio_bands
+
+    # RT-BE96U: wl2 is 6 GHz
+    assert radio_bands({"wl0_nband": "2", "wl1_nband": "1", "wl2_nband": "4"}) == [("2g", 0), ("5g", 1), ("6g", 2)]
+    # GT-AX11000: wl2 is the second 5 GHz radio
+    assert radio_bands({"wl0_nband": "2", "wl1_nband": "1", "wl2_nband": "1"}) == [("2g", 0), ("5g", 1), ("5g2", 2)]
+    # nband unread -> legacy dual-band
+    assert radio_bands({}) == [("2g", 0), ("5g", 1)]

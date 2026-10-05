@@ -45,7 +45,14 @@ def parse_angle_records(value: str, fields: int) -> list[list[str]]:
 
 def parse_dhcp_staticlist(value: str) -> list[DhcpReservation]:
     records = []
-    for mac, ip, name in parse_angle_records(value, 3):
+    # Records are <mac>ip>name (older firmware) or <mac>ip>dns>name (3004+/Merlin 386+/3006):
+    # the name is always the LAST field. ponytail: format_dhcp_staticlist still writes 3 fields.
+    for chunk in value.split("<"):
+        parts = chunk.split(">")  # no rstrip: trailing empty fields carry the field count
+        if len(parts) < 2:
+            continue
+        mac, ip = parts[0], parts[1]
+        name = parts[3] if len(parts) >= 4 else (parts[2] if len(parts) == 3 else "")
         if mac and ip:
             records.append(
                 DhcpReservation(

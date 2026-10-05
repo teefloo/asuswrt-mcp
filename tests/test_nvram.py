@@ -89,3 +89,12 @@ def test_remove_port_forwarding_rule() -> None:
     assert changed is True
     assert rules == []
     assert new_raw == ""
+
+
+def test_dhcp_staticlist_four_field_name_is_last() -> None:
+    # 3004+/Merlin format <mac>ip>dns>name, incl. an entry with no name
+    raw = "<AA:BB:CC:DD:EE:FF>192.168.50.20>>Printer<11:22:33:44:55:66>192.168.50.21>>"
+
+    parsed = parse_dhcp_staticlist(raw)
+
+    assert [(r.ip, r.name) for r in parsed] == [("192.168.50.20", "Printer"), ("192.168.50.21", "")]

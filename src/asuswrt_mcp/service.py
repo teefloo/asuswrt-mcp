@@ -71,6 +71,17 @@ RESTART_SERVICE_MAP = {
 }
 
 GUEST_BANDS = {"2g": 0, "5g": 1, "5g2": 2, "6g": 3}
+# Radio index -> band is model-specific (RT-BE96U: wl2 = 6 GHz; GT-AX11000: wl2 = second 5 GHz),
+# so bands are derived from wl<i>_nband (2 = 2.4, 1 = 5, 4 = 6 GHz), not from the index.
+RADIO_INDEXES = range(4)
+NBAND_TO_BAND = {"2": "2g", "1": "5g", "4": "6g"}
+RADIO_KEYS = [f"wl{i}_{k}" for i in RADIO_INDEXES for k in ("nband", "ssid", "radio")]
+GUEST_KEYS = [
+    f"wl{i}.{slot}_{k}"
+    for i in RADIO_INDEXES
+    for slot in (1, 2, 3)
+    for k in ("ssid", "bss_enabled", "lanaccess")
+]
 PARENTAL_KEYS = [
     KEY_PC_BLOCK_ALL,
     KEY_PC_MAC,
@@ -89,8 +100,7 @@ SSH_HEALTH_KEYS = [
     "lan_ipaddr",
     "wan0_ipaddr",
     "wan0_gateway",
-    "wl0_radio",
-    "wl1_radio",
+    *RADIO_KEYS,
 ]
 SSH_SNAPSHOT_KEYS = [
     "productid",
@@ -103,53 +113,16 @@ SSH_SNAPSHOT_KEYS = [
     "http_enable",
     "http_lanport",
     "https_lanport",
-    "wl0_ssid",
-    "wl1_ssid",
-    "wl0_radio",
-    "wl1_radio",
-    "wl0.1_ssid",
-    "wl0.1_bss_enabled",
-    "wl0.2_ssid",
-    "wl0.2_bss_enabled",
-    "wl0.3_ssid",
-    "wl0.3_bss_enabled",
-    "wl1.1_ssid",
-    "wl1.1_bss_enabled",
-    "wl1.2_ssid",
-    "wl1.2_bss_enabled",
-    "wl1.3_ssid",
-    "wl1.3_bss_enabled",
+    *RADIO_KEYS,
+    *GUEST_KEYS,
     "vts_enable_x",
     "vts_rulelist",
     "dhcp_staticlist",
     *PARENTAL_KEYS,
 ]
-GUEST_KEYS = [
-    "wl0.1_ssid",
-    "wl0.1_bss_enabled",
-    "wl0.1_lanaccess",
-    "wl0.2_ssid",
-    "wl0.2_bss_enabled",
-    "wl0.2_lanaccess",
-    "wl0.3_ssid",
-    "wl0.3_bss_enabled",
-    "wl0.3_lanaccess",
-    "wl1.1_ssid",
-    "wl1.1_bss_enabled",
-    "wl1.1_lanaccess",
-    "wl1.2_ssid",
-    "wl1.2_bss_enabled",
-    "wl1.2_lanaccess",
-    "wl1.3_ssid",
-    "wl1.3_bss_enabled",
-    "wl1.3_lanaccess",
-]
 WIRELESS_KEYS = [
     "productid",
-    "wl0_ssid",
-    "wl1_ssid",
-    "wl0_radio",
-    "wl1_radio",
+    *RADIO_KEYS,
     *GUEST_KEYS,
 ]
 NETWORK_KEYS = [
@@ -235,6 +208,19 @@ CONNTRACK_MAX_COMMAND = (
     "cat /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null || true"
 )
 
+
+
+def radio_bands(raw: dict[str, str]) -> list[tuple[str, int]]:
+    """(band, wl index) for each radio present, from wl<i>_nband; legacy 2g/5g if nband unread."""
+    bands: list[tuple[str, int]] = []
+    for index in RADIO_INDEXES:
+        band = NBAND_TO_BAND.get(raw.get(f"wl{index}_nband", ""))
+        if band is None:
+            continue
+        if band == "5g" and any(b == "5g" for b, _ in bands):
+            band = "5g2"
+        bands.append((band, index))
+    return bands or [("2g", 0), ("5g", 1)]
 
 class RouterService:
     """Coordinates safe router operations through allowlisted SSH only."""
@@ -379,8 +365,8 @@ class RouterService:
                 "wan_ip": nvram.get("wan0_ipaddr", ""),
                 "wan_gateway": nvram.get("wan0_gateway", ""),
                 "wireless_radios": {
-                    "2g": nvram.get("wl0_radio", "") == "1",
-                    "5g": nvram.get("wl1_radio", "") == "1",
+                    band: nvram.get(f"wl{index}_radio", "") == "1"
+                    for band, index in radio_bands(nvram)
                 },
                 "web_admin": {
                     "http_enabled": nvram.get("http_enable", "") == "1",
@@ -508,7 +494,7 @@ class RouterService:
 
     def _guest_entries_from_nvram(self, raw: dict[str, str]) -> list[dict[str, Any]]:
         guest_wifi = []
-        for band, index in (("2g", 0), ("5g", 1)):
+        for band, index in radio_bands(raw):
             for slot in (1, 2, 3):
                 ssid = raw.get(f"wl{index}.{slot}_ssid", "")
                 enabled = raw.get(f"wl{index}.{slot}_bss_enabled", "") == "1"
@@ -551,7 +537,7 @@ class RouterService:
         buildno = raw.get("buildno", "")
         extendno = raw.get("extendno", "")
         wireless = []
-        for band, index in (("2g", 0), ("5g", 1)):
+        for band, index in radio_bands(raw):
             wireless.append(
                 {
                     "band": band,
@@ -680,21 +666,17 @@ class RouterService:
             band = str(client.get("band", "")).upper()
             if connection == "wired":
                 band_counts["wired"] += 1
-            elif band in band_counts:
-                band_counts[band] += 1
+            elif band:
+                band_counts[band] = band_counts.get(band, 0) + 1
 
         return {
             "radios": [
                 {
-                    "band": "2g",
-                    "ssid": raw.get("wl0_ssid", ""),
-                    "enabled": raw.get("wl0_radio", "") == "1",
-                },
-                {
-                    "band": "5g",
-                    "ssid": raw.get("wl1_ssid", ""),
-                    "enabled": raw.get("wl1_radio", "") == "1",
-                },
+                    "band": band,
+                    "ssid": raw.get(f"wl{index}_ssid", ""),
+                    "enabled": raw.get(f"wl{index}_radio", "") == "1",
+                }
+                for band, index in radio_bands(raw)
             ],
             "guest_networks": self._guest_entries_from_nvram(raw),
             "connected_counts": band_counts,
