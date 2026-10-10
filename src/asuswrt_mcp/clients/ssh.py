@@ -50,11 +50,9 @@ class AsusRouterSshClient:
 
         for attempt in range(3):
             client = paramiko.SSHClient()
-            if self._settings.ssh_strict_host_key:
-                client.load_system_host_keys()
-                client.set_missing_host_key_policy(paramiko.RejectPolicy())
-            else:
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Router host identity is mandatory: never learn an unverified key.
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
             try:
                 client.connect(

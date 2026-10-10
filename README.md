@@ -63,6 +63,7 @@ All mutation tools require:
 
 - Python 3.11+
 - An AsusWRT or AsusWRT-Merlin router with SSH access enabled
+- The router SSH host key independently verified and present in the current account's SSH known_hosts file
 - Network connectivity from the MCP client to the router
 
 ## Installation
@@ -97,6 +98,14 @@ cp .env.example .env
 notepad .env        # Windows
 nano .env           # Linux/macOS
 ```
+
+**SSH host-key trust:** Before the first connection, verify the router's
+SSH host-key fingerprint using a separate trusted channel, and install
+the matching public host key into the operating account's SSH
+known_hosts file. Unknown or changed keys are rejected; the previous
+ASUSWRT_SSH_STRICT_HOST_KEY=false setting no longer permits bypassing
+host identity verification. Existing installations that relied on
+automatic trust will need one-time known_hosts preparation.
 
 ### 3. Configure `.env`
 

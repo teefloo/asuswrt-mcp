@@ -38,7 +38,6 @@ class Settings(BaseSettings):
     ssh_username: str | None = None
     ssh_password: SecretStr | None = None
     ssh_key_file: Path | None = None
-    ssh_strict_host_key: bool = False
     prefer_ssh: bool = False
 
     allow_mutations: bool = False
