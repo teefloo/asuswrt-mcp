@@ -158,7 +158,10 @@ class MockSshClient:
         KEY_PC_TIMEMAP: "W03E21000700<W04122000800",
     }
     writes: list[dict[str, str | int]] = []
+    service_calls: list[str] = []
     commands: dict[str, str] = {
+        "ps w | grep -E 'syslogd|klogd' | grep -v grep || true": "PID USER VSZ STAT COMMAND\n1 root 100 S syslogd\n2 root 100 S klogd\n",
+
         "cat /proc/uptime": "48409.39 82525.31",
         "cat /proc/loadavg": "19.32 18.83 16.90 1/160 30524",
         "cat /proc/meminfo": "MemTotal: 255708 kB\nMemFree: 103480 kB\nCached: 17752 kB",
@@ -271,6 +274,16 @@ class MockSshClient:
         return object()
 
     def restart_service(self, service: str) -> object:
+        self.service_calls.append(service)
+        if service == "restart_logger":
+            from asuswrt_mcp.service import LOGGING_PROCESS_COMMAND
+            destination = self.values.get("log_ipaddr", "")
+            port = self.values.get("log_port", "514")
+            forwarding = f" -R {destination}:{port}" if destination else ""
+            self.commands[LOGGING_PROCESS_COMMAND] = (
+                f"PID USER VSZ STAT COMMAND\n1 root 100 S syslogd{forwarding}\n"
+                "2 root 100 S klogd\n"
+            )
         return object()
 
     def run_command(self, command: str) -> CommandResult:
@@ -290,6 +303,7 @@ def make_service(
     MockSshClient.values = dict(MockSshClient.default_values)
     MockSshClient.commands = dict(MockSshClient.default_commands)
     MockSshClient.writes = []
+    MockSshClient.service_calls = []
     MockSshClient.connect_count = 0
     MockSshClient.close_count = 0
     settings = Settings(
@@ -982,3 +996,100 @@ async def test_vpn_server_writes_nvram() -> None:
     assert any(
         write.get("vpn_serverx_start_x") == 0 for write in MockSshClient.writes
     )
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("destination", ["8.8.8.8", "127.0.0.1", "169.254.1.2", "224.0.0.1", "::1", "192.168.1.2;reboot"])
+async def test_remote_syslog_rejects_non_private_ipv4(destination: str) -> None:
+    service = make_service(prefer_ssh=True)
+    with pytest.raises(Exception) as exc:
+        await service.remote_syslog(enabled=True, destination=destination, confirm=True)
+    assert getattr(exc.value, "code") == "invalid_syslog_destination"
+    assert MockSshClient.writes == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("port", [0, 65536])
+async def test_remote_syslog_rejects_invalid_port(port: int) -> None:
+    service = make_service(prefer_ssh=True)
+    with pytest.raises(Exception) as exc:
+        await service.remote_syslog(enabled=True, destination="192.168.2.10", port=port, confirm=True)
+    assert getattr(exc.value, "code") == "invalid_syslog_port"
+    assert MockSshClient.writes == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("allowed,confirm,code", [(False, True, "mutation_disabled"), (True, False, "confirmation_required")])
+async def test_remote_syslog_keeps_mutation_guards(allowed: bool, confirm: bool, code: str) -> None:
+    service = make_service(prefer_ssh=True, allow_mutations=allowed)
+    with pytest.raises(Exception) as exc:
+        await service.remote_syslog(enabled=True, destination="192.168.2.10", confirm=confirm)
+    assert getattr(exc.value, "code") == code
+    assert MockSshClient.writes == []
+
+
+@pytest.mark.asyncio
+async def test_remote_syslog_dry_run_never_writes_or_exposes_destination() -> None:
+    service = make_service(prefer_ssh=True, allow_mutations=False)
+    result = await service.remote_syslog(enabled=True, destination="192.168.2.10", dry_run=True)
+    assert result["dry_run"] is True
+    assert "192.168.2.10" not in str(result)
+    assert MockSshClient.writes == []
+    assert MockSshClient.service_calls == []
+
+
+@pytest.mark.asyncio
+async def test_remote_syslog_changes_only_destination_port_and_verifies() -> None:
+    service = make_service(prefer_ssh=True)
+    before = dict(MockSshClient.values)
+    result = await service.remote_syslog(enabled=True, destination="192.168.2.10", port=1514, confirm=True)
+    assert result["changed"] is True
+    assert result["data"]["verified"] is True
+    assert MockSshClient.writes == [{"log_ipaddr": "192.168.2.10", "log_port": "1514"}]
+    assert MockSshClient.service_calls == ["restart_logger"]
+    assert all(MockSshClient.values[k] == v for k, v in before.items() if k not in {"log_ipaddr", "log_port"})
+    again = await service.remote_syslog(enabled=True, destination="192.168.2.10", port=1514, confirm=True)
+    assert again["changed"] is False
+    assert len(MockSshClient.writes) == 1
+
+
+@pytest.mark.asyncio
+async def test_remote_syslog_disable_preserves_port_and_local_logging() -> None:
+    service = make_service(prefer_ssh=True)
+    MockSshClient.values.update({"log_ipaddr": "192.168.2.10", "log_port": "1514"})
+    result = await service.remote_syslog(enabled=False, confirm=True)
+    assert result["data"]["verified"] is True
+    assert MockSshClient.writes == [{"log_ipaddr": ""}]
+    assert MockSshClient.values["log_port"] == "1514"
+
+
+@pytest.mark.asyncio
+async def test_remote_syslog_failed_readback_is_not_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = make_service(prefer_ssh=True)
+    monkeypatch.setattr(MockSshClient, "set_nvram", lambda self, values, **kwargs: None)
+    with pytest.raises(Exception) as exc:
+        await service.remote_syslog(enabled=True, destination="192.168.2.10", confirm=True)
+    assert getattr(exc.value, "code") == "syslog_readback_mismatch"
+
+
+@pytest.mark.asyncio
+async def test_remote_syslog_repairs_runtime_only_without_nvram_write() -> None:
+    from asuswrt_mcp.service import LOGGING_PROCESS_COMMAND
+    service = make_service(prefer_ssh=True)
+    MockSshClient.values.update({"log_ipaddr": "192.168.2.10", "log_port": "514"})
+    MockSshClient.commands[LOGGING_PROCESS_COMMAND] = "PID USER VSZ STAT COMMAND\n1 root 100 S syslogd\n"
+    preview = await service.remote_syslog(enabled=True, destination="192.168.2.10", dry_run=True)
+    assert preview["data"]["configuration_change_required"] is False
+    assert preview["data"]["runtime_restart_required"] is True
+    result = await service.remote_syslog(enabled=True, destination="192.168.2.10", confirm=True)
+    assert result["changed"] is True and result["data"]["verified"] is True
+    assert MockSshClient.writes == []
+    assert MockSshClient.service_calls == ["restart_logger"]
+
+
+@pytest.mark.asyncio
+async def test_remote_syslog_does_not_accept_stored_state_with_inactive_forwarder(monkeypatch) -> None:
+    service = make_service(prefer_ssh=True)
+    monkeypatch.setattr(MockSshClient, "restart_service", lambda self, service: None)
+    with pytest.raises(Exception) as exc:
+        await service.remote_syslog(enabled=True, destination="192.168.2.10", confirm=True)
+    assert getattr(exc.value, "code") == "syslog_runtime_mismatch"

@@ -213,6 +213,23 @@ async def asuswrt_config_snapshot() -> dict:
     return await _call("asuswrt_config_snapshot", router_service.config_snapshot())
 
 
+@mcp.tool(description="Configure remote UDP syslog to one private IPv4 destination, or disable it, with confirmation and dry-run safeguards.")
+async def asuswrt_remote_syslog(
+    enabled: bool,
+    destination: str = "",
+    port: int = 514,
+    confirm: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    return await _call(
+        "asuswrt_remote_syslog",
+        router_service.remote_syslog(
+            enabled=enabled, destination=destination, port=port,
+            confirm=confirm, dry_run=dry_run,
+        ),
+        dry_run=dry_run,
+    )
+
 @mcp.tool(description="Restart an allowlisted AsusWRT service.")
 async def asuswrt_restart_service(
     service: str,
