@@ -371,6 +371,25 @@ async def asuswrt_vpn_server(
     )
 
 
+@mcp.tool(description="Connect, disconnect, or restart an already-configured WireGuard client slot with confirmation and dry-run safeguards.")
+async def asuswrt_wireguard_client(
+    action: Literal["connect", "disconnect", "restart"],
+    unit: int,
+    confirm: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    return await _call(
+        "asuswrt_wireguard_client",
+        router_service.wireguard_client(
+            action=action,
+            unit=unit,
+            confirm=confirm,
+            dry_run=dry_run,
+        ),
+        dry_run=dry_run,
+    )
+
+
 @mcp.tool(description="List or manage AsusWRT parental access rules.")
 async def asuswrt_parental_access(
     action: Literal["list", "enable", "disable", "block", "unblock", "remove"],

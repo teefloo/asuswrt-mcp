@@ -1260,6 +1260,88 @@ class RouterService:
             data={**data, "result": True, "source": "ssh"},
         )
 
+    async def wireguard_client(
+        self,
+        *,
+        action: Literal["connect", "disconnect", "restart"],
+        unit: int,
+        confirm: bool = False,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        if action not in {"connect", "disconnect", "restart"}:
+            raise UnsupportedOperationError(
+                code="unsupported_vpn_client_action",
+                message="WireGuard client action is not supported.",
+                details={"action": action, "allowed": ["connect", "disconnect", "restart"]},
+            )
+        if unit not in range(1, 6):
+            raise RouterOperationError(
+                code="invalid_vpn_client_unit",
+                message="WireGuard client unit must be between 1 and 5.",
+                details={"unit": unit},
+            )
+
+        nvram_key = f"wgc{unit}_enable"
+        with self._managed_ssh() as ssh:
+            marker = ssh.get_nvram(nvram_key).strip()
+        if marker not in {"0", "1"}:
+            raise UnsupportedOperationError(
+                code="vpn_client_slot_not_configured",
+                message="WireGuard client slot is not configured.",
+                details={"unit": unit},
+            )
+
+        enabled_before = marker == "1"
+        if action == "restart" and not enabled_before:
+            raise RouterOperationError(
+                code="vpn_client_not_enabled",
+                message="WireGuard client must be enabled before it can be restarted.",
+                details={"unit": unit},
+            )
+
+        enabled_after = {
+            "connect": True,
+            "disconnect": False,
+            "restart": enabled_before,
+        }[action]
+        service_action = {
+            "connect": f"start_wgc {unit}",
+            "disconnect": f"stop_wgc {unit}",
+            "restart": f"restart_wgc {unit}",
+        }[action]
+        would_change = action == "restart" or enabled_after != enabled_before
+        data = {
+            "action": action,
+            "unit": unit,
+            "configured": True,
+            "enabled_before": enabled_before,
+            "enabled_after": enabled_after,
+            "service_action": service_action,
+            "would_change": would_change,
+        }
+
+        require_mutation(self.settings.allow_mutations, confirm, dry_run)
+        if dry_run:
+            return tool_ok("asuswrt_wireguard_client", dry_run=True, data=data)
+        if not would_change:
+            return tool_ok(
+                "asuswrt_wireguard_client",
+                data={**data, "result": True, "source": "ssh"},
+            )
+
+        with self._managed_ssh() as ssh:
+            if action == "connect":
+                ssh.set_nvram({nvram_key: 1}, commit=True, service=service_action)
+            elif action == "disconnect":
+                ssh.set_nvram({nvram_key: 0}, commit=True, service=service_action)
+            else:
+                ssh.restart_service(service_action)
+        return tool_ok(
+            "asuswrt_wireguard_client",
+            changed=True,
+            data={**data, "result": True, "source": "ssh"},
+        )
+
     async def guest_wifi(
         self,
         *,

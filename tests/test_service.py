@@ -158,6 +158,7 @@ class MockSshClient:
         KEY_PC_TIMEMAP: "W03E21000700<W04122000800",
     }
     writes: list[dict[str, str | int]] = []
+    service_calls: list[str] = []
     commands: dict[str, str] = {
         "cat /proc/uptime": "48409.39 82525.31",
         "cat /proc/loadavg": "19.32 18.83 16.90 1/160 30524",
@@ -265,12 +266,15 @@ class MockSshClient:
     def get_nvram_many(self, keys: list[str]) -> dict[str, str]:
         return {key: self.values.get(key, "") for key in keys}
 
-    def set_nvram(self, values: dict[str, str | int], **_kwargs: Any) -> object:
+    def set_nvram(self, values: dict[str, str | int], **kwargs: Any) -> object:
         self.writes.append(values)
+        if kwargs.get("service"):
+            self.service_calls.append(str(kwargs["service"]))
         self.values.update({key: str(value) for key, value in values.items()})
         return object()
 
     def restart_service(self, service: str) -> object:
+        self.service_calls.append(service)
         return object()
 
     def run_command(self, command: str) -> CommandResult:
@@ -290,6 +294,7 @@ def make_service(
     MockSshClient.values = dict(MockSshClient.default_values)
     MockSshClient.commands = dict(MockSshClient.default_commands)
     MockSshClient.writes = []
+    MockSshClient.service_calls = []
     MockSshClient.connect_count = 0
     MockSshClient.close_count = 0
     settings = Settings(
@@ -982,3 +987,88 @@ async def test_vpn_server_writes_nvram() -> None:
     assert any(
         write.get("vpn_serverx_start_x") == 0 for write in MockSshClient.writes
     )
+
+@pytest.mark.asyncio
+async def test_wireguard_client_connect_dry_run_is_bounded_and_non_mutating() -> None:
+    service = make_service(prefer_ssh=True, allow_mutations=False)
+    MockSshClient.values["wgc2_enable"] = "0"
+
+    response = await service.wireguard_client(action="connect", unit=2, dry_run=True)
+
+    assert response["ok"] is True
+    assert response["dry_run"] is True
+    assert response["data"] == {
+        "action": "connect",
+        "unit": 2,
+        "configured": True,
+        "enabled_before": False,
+        "enabled_after": True,
+        "service_action": "start_wgc 2",
+        "would_change": True,
+    }
+    assert MockSshClient.writes == []
+    assert MockSshClient.service_calls == []
+
+
+@pytest.mark.asyncio
+async def test_wireguard_client_rejects_unconfigured_slot() -> None:
+    service = make_service(prefer_ssh=True)
+
+    with pytest.raises(Exception) as exc:
+        await service.wireguard_client(action="connect", unit=5, confirm=True)
+
+    assert getattr(exc.value, "code") == "vpn_client_slot_not_configured"
+    assert MockSshClient.writes == []
+    assert MockSshClient.service_calls == []
+
+
+@pytest.mark.asyncio
+async def test_wireguard_client_real_action_requires_confirmation() -> None:
+    service = make_service(prefer_ssh=True)
+    MockSshClient.values["wgc1_enable"] = "1"
+
+    with pytest.raises(Exception) as exc:
+        await service.wireguard_client(action="restart", unit=1)
+
+    assert getattr(exc.value, "code") == "confirmation_required"
+    assert MockSshClient.writes == []
+    assert MockSshClient.service_calls == []
+
+
+@pytest.mark.asyncio
+async def test_wireguard_client_connect_writes_enable_and_starts_unit() -> None:
+    service = make_service(prefer_ssh=True)
+    MockSshClient.values["wgc2_enable"] = "0"
+
+    response = await service.wireguard_client(action="connect", unit=2, confirm=True)
+
+    assert response["ok"] is True
+    assert response["changed"] is True
+    assert MockSshClient.writes[-1] == {"wgc2_enable": 1}
+    assert MockSshClient.service_calls[-1] == "start_wgc 2"
+
+
+@pytest.mark.asyncio
+async def test_wireguard_client_disconnect_writes_disable_and_stops_unit() -> None:
+    service = make_service(prefer_ssh=True)
+    MockSshClient.values["wgc1_enable"] = "1"
+
+    response = await service.wireguard_client(action="disconnect", unit=1, confirm=True)
+
+    assert response["ok"] is True
+    assert response["changed"] is True
+    assert MockSshClient.writes[-1] == {"wgc1_enable": 0}
+    assert MockSshClient.service_calls[-1] == "stop_wgc 1"
+
+
+@pytest.mark.asyncio
+async def test_wireguard_client_restart_preserves_enable_flag() -> None:
+    service = make_service(prefer_ssh=True)
+    MockSshClient.values["wgc1_enable"] = "1"
+
+    response = await service.wireguard_client(action="restart", unit=1, confirm=True)
+
+    assert response["ok"] is True
+    assert response["changed"] is True
+    assert MockSshClient.writes == []
+    assert MockSshClient.service_calls[-1] == "restart_wgc 1"
