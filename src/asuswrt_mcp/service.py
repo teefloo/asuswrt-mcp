@@ -5,6 +5,7 @@ from __future__ import annotations
 import binascii
 from contextlib import contextmanager, suppress
 import socket
+import shlex
 from threading import RLock
 import time
 from collections.abc import Callable
@@ -191,6 +192,165 @@ TIME_SYNC_KEYS = [
     "ntp_ready",
 ]
 DNS_KEYS = ["wan0_dns", "dhcp_dns1_x", "dhcp_dns2_x", "dnsfilter_enable_x"]
+FIREWALL_KEYS = [
+    "fw_enable_x",
+    "fw_dos_x",
+    "fw_log_x",
+    "misc_ping_x",
+    "ipv6_fw_enable",
+    "autofw_enable_x",
+    "autofw_rulelist",
+    "dmz_ip",
+    "ipv6_fw_rulelist",
+    "url_rulelist",
+    "keyword_rulelist",
+    "fw_pt_h323",
+    "fw_pt_ipsec",
+    "fw_pt_l2tp",
+    "fw_pt_pppoerelay",
+    "fw_pt_pptp",
+    "fw_pt_rtsp",
+    "fw_pt_sip",
+]
+DNS_FILTER_KEYS = [
+    "dnsfilter_enable_x",
+    "dnsfilter_mode",
+    "dnsfilter_custom1",
+    "dnsfilter_custom2",
+    "dnsfilter_custom3",
+    "dnsfilter_rulelist",
+]
+DNS_PRIVACY_KEYS = [
+    "dnspriv_enable",
+    "dnspriv_profile",
+    "dnspriv_rulelist",
+    "dnssec_enable",
+    "dnssec_check_unsigned_x",
+]
+QOS_KEYS = [
+    "qos_enable",
+    "qos_type",
+    "qos_method",
+    "qos_ibw",
+    "qos_obw",
+    "qos_rulelist",
+    "qos_bw_rulelist",
+]
+QOS_TYPE_LABELS = {
+    0: "traditional",
+    1: "adaptive",
+    2: "bandwidth_limiter",
+    3: "geforce_now",
+    9: "cake",
+}
+AIPROTECTION_KEYS = [
+    "wrs_protect_enable",
+    "wrs_mals_enable",
+    "wrs_vp_enable",
+    "wrs_cc_enable",
+    "bwdpi_dpi_ver",
+    "bwdpi_sig_ver",
+]
+AIMESH_KEYS = [
+    "cfg_recount",
+    "cfg_re_maxnum",
+    "cfg_relist",
+    "cfg_wifi_quality",
+    "amas_lanctrl_service_ready",
+]
+VLAN_GUEST_KEYS = [
+    "vlan_enable",
+    "vlan_rulelist",
+    "vlan_pvid_list",
+    "wgn_vlan_flag",
+    "wgn_brif_rulelist",
+    "gvlan_rulelist",
+    "switch_wantag",
+    "switch_wan0tagid",
+]
+DUAL_WAN_KEYS = [
+    "wans_dualwan",
+    "wans_mode",
+    "wans_lb_ratio",
+    "wans_routing_enable",
+    "wans_routing_rulelist",
+    "wans_cap",
+    "wan_unit",
+    *(
+        f"wan{unit}_{suffix}"
+        for unit in range(2)
+        for suffix in ("enable", "proto", "state_t", "auxstate_t", "sbstate_t")
+    ),
+]
+WIRELESS_CONFIG_UNITS = range(4)
+WPS_KEYS = [
+    "wps_enable",
+    "wps_enable_x",
+    "wps_band_x",
+    "wps_proc_status",
+    *(
+        f"wl{unit}_{suffix}"
+        for unit in WIRELESS_CONFIG_UNITS
+        for suffix in ("ifname", "nband", "wps_mode", "wps_config_state", "wps_reg")
+    ),
+]
+SMART_CONNECT_ROAMING_KEYS = [
+    "smart_connect_x",
+    "scb_smart_connect_x",
+    "rast_weak_rssi_diff",
+    *(
+        f"wl{unit}_{suffix}"
+        for unit in WIRELESS_CONFIG_UNITS
+        for suffix in ("ifname", "nband", "user_rssi")
+    ),
+]
+SMART_CONNECT_PROCESS_COMMAND = "ps | grep -E 'roamast|bsd|wps_monitor' | grep -v grep || true"
+WIRELESS_ADVANCED_KEYS = [
+    f"wl{unit}_{suffix}"
+    for unit in WIRELESS_CONFIG_UNITS
+    for suffix in (
+        "ifname",
+        "nband",
+        "nmode_x",
+        "txbf",
+        "mumimo",
+        "atf",
+        "11ax",
+        "ofdma",
+        "twt",
+        "acs_dfs",
+        "dfs_bw_fallback",
+        "txpower",
+    )
+]
+WIRELESS_CONFIG_KEYS = [
+    f"wl{unit}_{suffix}"
+    for unit in WIRELESS_CONFIG_UNITS
+    for suffix in (
+        "ifname",
+        "nband",
+        "radio",
+        "ssid",
+        "channel",
+        "bw",
+        "auth_mode_x",
+        "crypto",
+        "closed",
+    )
+]
+WIRELESS_SCHEDULE_KEYS = [
+    f"wl{unit}_{suffix}"
+    for unit in WIRELESS_CONFIG_UNITS
+    for suffix in (
+        "ifname",
+        "nband",
+        "timesched",
+        "radio_date_x",
+        "radio_time_x",
+        "radio_time2_x",
+        "sched_v2",
+    )
+]
 IPV6_KEYS = [
     "ipv6_service",
     "ipv6_prefix",
@@ -205,7 +365,20 @@ ADMIN_ACCESS_KEYS = [
     "telnetd_enable",
     *WEB_ADMIN_KEYS,
 ]
-VPN_KEYS = ["vpn_serverx_start_x", "vpnc_clientlist", "wgs_enable"]
+WIREGUARD_CLIENT_ENABLE_KEYS = [f"wgc{unit}_enable" for unit in range(1, 6)]
+VPN_KEYS = [
+    "vpn_serverx_start_x",
+    "vpnc_clientlist",
+    "wgs_enable",
+    *WIREGUARD_CLIENT_ENABLE_KEYS,
+]
+VPN_CLIENT_STATUS_KEYS = [
+    "VPNClient_enable",
+    "vpnc_clientlist",
+    "vpnc_dev_policy_list",
+    "vpnc_policy_unit",
+    *WIREGUARD_CLIENT_ENABLE_KEYS,
+]
 UPNP_KEYS = ["upnp_enable", "upnp_proto", "upnp_clean_int"]
 DDNS_KEYS = [
     "ddns_enable_x",
@@ -213,6 +386,71 @@ DDNS_KEYS = [
     "ddns_server_x",
     "ddns_updated",
     "ddns_status",
+]
+LOGGING_KEYS = ["log_ipaddr", "log_port", "log_level", "log_size", "log_path"]
+LOGGING_PROCESS_COMMAND = "ps | grep -E 'syslogd|klogd' | grep -v grep || true"
+WAN_WATCHDOG_KEYS = [
+    "wandog_enable",
+    "wandog_interval",
+    "wandog_maxfail",
+    "wandog_delay",
+    "wandog_fb_count",
+    "wandog_fb_restart",
+    "dns_probe",
+    "dns_probe_timeout",
+    "dns_probe_host",
+]
+WAN_WATCHDOG_PROCESS_COMMAND = "ps | grep -E 'wanduck' | grep -v grep || true"
+TRAFFIC_MONITORING_KEYS = [
+    "bwdpi_db_enable",
+    "bwdpi_wh_enable",
+    "apps_analysis",
+    "rstats_enable",
+    "cstats_enable",
+]
+TRAFFIC_MONITORING_PROCESS_COMMAND = "ps | grep -E 'rstats|cstats' | grep -v grep || true"
+AUXILIARY_SERVICES_KEYS = [
+    "enable_ftp",
+    "st_ftp_mode",
+    "ftp_wanac",
+    "ftp_tls",
+    "dms_enable",
+    "enable_webdav",
+    "webdav_aidisk",
+    "webdav_proxy",
+    "enable_cloudsync",
+    "modem_enable",
+    "modem_running",
+    "wan0_is_usb_modem_ready",
+    "wan1_is_usb_modem_ready",
+    "usb_printer",
+    "printer_status_t",
+    "pptpd_enable",
+    "ipsec_server_enable",
+    "ipsec_client_enable",
+]
+AUXILIARY_SERVICES_PROCESS_COMMAND = (
+    "ps | grep -E 'vsftpd|ftpd|minidlna|u2ec|lpd|p910|pptpd|charon|pluto|ipsec' "
+    "| grep -v grep || true"
+)
+USB_DISK_MONITOR_KEYS = [
+    "diskmon_freq",
+    "diskmon_policy",
+    "diskmon_status",
+    "diskmon_force_stop",
+    "pushnotify_diskmonitor",
+    "usb_idle_enable",
+    "usb_idle_timeout",
+]
+USB_DISK_MONITOR_PROCESS_COMMAND = "ps | grep -E 'disk_monitor|diskmon' | grep -v grep || true"
+FIRMWARE_UPDATE_KEYS = [
+    "webs_update_enable",
+    "webs_update_beta",
+    "webs_state_update",
+    "webs_state_flag",
+    "webs_state_error",
+    "webs_state_info",
+    "webs_state_level",
 ]
 SAMBA_KEYS = ["enable_samba", "st_samba_mode"]
 SERVICE_STATUS_COMMAND = (
@@ -307,6 +545,17 @@ class RouterService:
                 "asuswrt_lan_details",
                 "asuswrt_wan_details",
                 "asuswrt_dns_config",
+                "asuswrt_dns_filter_status",
+                "asuswrt_dns_privacy_status",
+                "asuswrt_qos_status",
+                "asuswrt_aiprotection_status",
+                "asuswrt_aimesh_status",
+                "asuswrt_vlan_guest_status",
+                "asuswrt_dual_wan_status",
+                "asuswrt_wps_status",
+                "asuswrt_smart_connect_roaming_status",
+                "asuswrt_wireless_advanced",
+                "asuswrt_wireless_schedule_status",
                 "asuswrt_ipv6_status",
                 "asuswrt_dhcp_config",
                 "asuswrt_time_sync",
@@ -317,6 +566,8 @@ class RouterService:
                 "asuswrt_arp_neighbors",
                 "asuswrt_service_processes",
                 "asuswrt_wireless_overview",
+                "asuswrt_firewall_status",
+                "asuswrt_wireless_config",
                 "asuswrt_guest_networks",
                 "asuswrt_interface_stats",
                 "asuswrt_open_ports",
@@ -331,8 +582,14 @@ class RouterService:
                 "asuswrt_route_table",
                 "asuswrt_policy_routing",
                 "asuswrt_vpn_overview",
+                "asuswrt_vpn_client_status",
+                "asuswrt_wan_watchdog_status",
+                "asuswrt_logging_status",
+                "asuswrt_traffic_monitoring_status",
+                "asuswrt_auxiliary_services_status",
                 "asuswrt_upnp_status",
                 "asuswrt_ddns_status",
+                "asuswrt_firmware_update_status",
                 "asuswrt_config_snapshot",
                 "asuswrt_capabilities",
                 "asuswrt_restart_service",
@@ -701,6 +958,415 @@ class RouterService:
             "source": "ssh",
         }
 
+    def _ssh_firewall_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(FIREWALL_KEYS)
+        return {
+            "enabled": raw.get("fw_enable_x", "") == "1",
+            "dos_protection_enabled": raw.get("fw_dos_x", "") == "1",
+            "logging": raw.get("fw_log_x", ""),
+            "wan_ping_response_enabled": raw.get("misc_ping_x", "") == "1",
+            "ipv6_firewall_enabled": raw.get("ipv6_fw_enable", "") == "1",
+            "port_triggering_enabled": raw.get("autofw_enable_x", "") == "1",
+            "port_trigger_rule_count": self._asus_list_count(
+                raw.get("autofw_rulelist", "")
+            ),
+            "dmz_configured": bool(raw.get("dmz_ip", "").strip()),
+            "ipv6_rule_count": self._asus_list_count(raw.get("ipv6_fw_rulelist", "")),
+            "url_filter_rule_count": self._asus_list_count(raw.get("url_rulelist", "")),
+            "content_filter_rule_count": self._asus_list_count(
+                raw.get("keyword_rulelist", "")
+            ),
+            "nat_passthrough": {
+                "h323": raw.get("fw_pt_h323", "") == "1",
+                "ipsec": raw.get("fw_pt_ipsec", "") == "1",
+                "l2tp": raw.get("fw_pt_l2tp", "") == "1",
+                "pppoe_relay": raw.get("fw_pt_pppoerelay", "") == "1",
+                "pptp": raw.get("fw_pt_pptp", "") == "1",
+                "rtsp": raw.get("fw_pt_rtsp", "") == "1",
+                "sip": raw.get("fw_pt_sip", "") == "1",
+            },
+            "source": "ssh",
+        }
+
+    @staticmethod
+    def _wireless_band_family(nband: str) -> str:
+        return {"2": "2.4ghz", "1": "5ghz"}.get(nband, "unknown")
+
+    @staticmethod
+    def _parse_chanspec(value: str) -> tuple[int | None, int | None]:
+        token = value.strip().split(maxsplit=1)[0] if value.strip() else ""
+        if not token:
+            return None, None
+        parts = token.split("/", 1)
+        try:
+            channel = int(parts[0])
+        except ValueError:
+            return None, None
+        bandwidth = None
+        if len(parts) == 2:
+            try:
+                bandwidth = int(parts[1])
+            except ValueError:
+                bandwidth = None
+        return channel, bandwidth
+
+    @staticmethod
+    def _label_wireless_bands(entries: list[dict[str, Any]]) -> None:
+        family_totals: dict[str, int] = {}
+        for entry in entries:
+            family = str(entry["band_family"])
+            family_totals[family] = family_totals.get(family, 0) + 1
+        family_seen: dict[str, int] = {}
+        for entry in entries:
+            family = str(entry["band_family"])
+            family_seen[family] = family_seen.get(family, 0) + 1
+            entry["band_label"] = (
+                f"{family}-{family_seen[family]}"
+                if family_totals[family] > 1
+                else family
+            )
+
+    def _ssh_wireless_config_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(WIRELESS_CONFIG_KEYS)
+            entries: list[dict[str, Any]] = []
+            for unit in WIRELESS_CONFIG_UNITS:
+                prefix = f"wl{unit}_"
+                ifname = raw.get(f"{prefix}ifname", "").strip()
+                if not ifname:
+                    continue
+                chanspec = ssh.run_command(
+                    f"wl -i {shlex.quote(ifname)} chanspec 2>/dev/null || true"
+                ).stdout
+                current_channel, current_bandwidth = self._parse_chanspec(chanspec)
+                configured_channel = raw.get(f"{prefix}channel", "").strip()
+                entries.append(
+                    {
+                        "unit": unit,
+                        "band_family": self._wireless_band_family(
+                            raw.get(f"{prefix}nband", "")
+                        ),
+                        "ssid": raw.get(f"{prefix}ssid", ""),
+                        "enabled": raw.get(f"{prefix}radio", "") == "1",
+                        "configured_channel": (
+                            "auto" if configured_channel in {"", "0"} else configured_channel
+                        ),
+                        "current_channel": current_channel,
+                        "current_bandwidth_mhz": current_bandwidth,
+                        "bandwidth_mode_code": raw.get(f"{prefix}bw", ""),
+                        "auth_mode": raw.get(f"{prefix}auth_mode_x", ""),
+                        "crypto": raw.get(f"{prefix}crypto", ""),
+                        "hidden": raw.get(f"{prefix}closed", "") == "1",
+                    }
+                )
+
+        self._label_wireless_bands(entries)
+        return {"radios": entries, "radio_count": len(entries), "source": "ssh"}
+
+    def _ssh_dns_filter_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(DNS_FILTER_KEYS)
+        custom_resolver_count = sum(
+            1 for key in ("dnsfilter_custom1", "dnsfilter_custom2", "dnsfilter_custom3")
+            if raw.get(key, "").strip()
+        )
+        rule_count = sum(
+            1 for part in raw.get("dnsfilter_rulelist", "").split("<") if part.strip()
+        )
+        return {
+            "enabled": raw.get("dnsfilter_enable_x", "") == "1",
+            "global_mode": raw.get("dnsfilter_mode", ""),
+            "custom_resolver_count": custom_resolver_count,
+            "client_rule_count": rule_count,
+            "source": "ssh",
+        }
+
+    def _ssh_dns_privacy_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(DNS_PRIVACY_KEYS)
+        return {
+            "dns_over_tls_enabled": raw.get("dnspriv_enable", "") == "1",
+            "dns_over_tls_profile_code": self._nvram_int(raw.get("dnspriv_profile", "")),
+            "dns_over_tls_rule_count": self._asus_list_count(
+                raw.get("dnspriv_rulelist", "")
+            ),
+            "dnssec_enabled": raw.get("dnssec_enable", "") == "1",
+            "dnssec_check_unsigned_enabled": raw.get("dnssec_check_unsigned_x", "") == "1",
+            "source": "ssh",
+        }
+
+    @staticmethod
+    def _parse_hhmm_window(value: str) -> dict[str, str] | None:
+        token = value.strip()
+        if len(token) != 8 or not token.isdigit():
+            return None
+        start_hour = int(token[0:2])
+        start_minute = int(token[2:4])
+        end_hour = int(token[4:6])
+        end_minute = int(token[6:8])
+        if (
+            start_hour > 23
+            or start_minute > 59
+            or end_hour > 23
+            or end_minute > 59
+        ):
+            return None
+        return {
+            "start": f"{start_hour:02d}:{start_minute:02d}",
+            "end": f"{end_hour:02d}:{end_minute:02d}",
+        }
+
+    def _ssh_wireless_schedule_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(WIRELESS_SCHEDULE_KEYS)
+        radios: list[dict[str, Any]] = []
+        for unit in WIRELESS_CONFIG_UNITS:
+            prefix = f"wl{unit}_"
+            if not raw.get(f"{prefix}ifname", "").strip():
+                continue
+            day_mask = raw.get(f"{prefix}radio_date_x", "").strip()
+            radios.append(
+                {
+                    "unit": unit,
+                    "band_family": self._wireless_band_family(
+                        raw.get(f"{prefix}nband", "")
+                    ),
+                    "schedule_enabled": raw.get(f"{prefix}timesched", "") == "1",
+                    "configured_day_count": sum(1 for value in day_mask if value == "1"),
+                    "legacy_primary_window": self._parse_hhmm_window(
+                        raw.get(f"{prefix}radio_time_x", "")
+                    ),
+                    "legacy_secondary_window": self._parse_hhmm_window(
+                        raw.get(f"{prefix}radio_time2_x", "")
+                    ),
+                    "v2_schedule_present": bool(
+                        raw.get(f"{prefix}sched_v2", "").strip()
+                    ),
+                }
+            )
+        self._label_wireless_bands(radios)
+        return {"radios": radios, "radio_count": len(radios), "source": "ssh"}
+
+    @staticmethod
+    def _nvram_int(value: str) -> int | None:
+        token = value.strip()
+        if not token:
+            return None
+        try:
+            return int(token)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _asus_list_count(value: str) -> int:
+        return sum(1 for part in value.split("<") if part.strip())
+
+    def _ssh_qos_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(QOS_KEYS)
+        qos_type = self._nvram_int(raw.get("qos_type", ""))
+        return {
+            "enabled": raw.get("qos_enable", "") == "1",
+            "configured_type_code": qos_type,
+            "configured_type": QOS_TYPE_LABELS.get(qos_type, "unknown"),
+            "method_code": self._nvram_int(raw.get("qos_method", "")),
+            "inbound_bandwidth_kbit": self._nvram_int(raw.get("qos_ibw", "")),
+            "outbound_bandwidth_kbit": self._nvram_int(raw.get("qos_obw", "")),
+            "rule_count": self._asus_list_count(raw.get("qos_rulelist", "")),
+            "bandwidth_rule_count": self._asus_list_count(
+                raw.get("qos_bw_rulelist", "")
+            ),
+            "source": "ssh",
+        }
+
+    def _ssh_aiprotection_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(AIPROTECTION_KEYS)
+        return {
+            "enabled": raw.get("wrs_protect_enable", "") == "1",
+            "malicious_sites_blocking_enabled": raw.get("wrs_mals_enable", "") == "1",
+            "two_way_ips_enabled": raw.get("wrs_vp_enable", "") == "1",
+            "infected_device_prevention_enabled": raw.get("wrs_cc_enable", "") == "1",
+            "dpi_version": raw.get("bwdpi_dpi_ver", ""),
+            "signature_version": raw.get("bwdpi_sig_ver", ""),
+            "source": "ssh",
+        }
+
+    def _ssh_aimesh_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(AIMESH_KEYS)
+        configured_node_count = self._nvram_int(raw.get("cfg_recount", ""))
+        topology_record_count = self._asus_list_count(raw.get("cfg_relist", ""))
+        return {
+            "configured_node_count": configured_node_count,
+            "max_node_count": self._nvram_int(raw.get("cfg_re_maxnum", "")),
+            "topology_record_count": topology_record_count,
+            "topology_count_consistent": (
+                configured_node_count == topology_record_count
+                if configured_node_count is not None
+                else None
+            ),
+            "controller_ready": raw.get("amas_lanctrl_service_ready", "") == "1",
+            "wifi_quality_threshold_dbm": self._nvram_int(
+                raw.get("cfg_wifi_quality", "")
+            ),
+            "source": "ssh",
+        }
+
+    def _ssh_vlan_guest_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(VLAN_GUEST_KEYS)
+        wan_tag_id = raw.get("switch_wan0tagid", "").strip()
+        return {
+            "vlan_enabled": raw.get("vlan_enable", "") == "1",
+            "saved_vlan_rule_count": self._asus_list_count(
+                raw.get("vlan_rulelist", "")
+            ),
+            "pvid_rule_count": self._asus_list_count(
+                raw.get("vlan_pvid_list", "")
+            ),
+            "guest_vlan_mode_enabled": raw.get("wgn_vlan_flag", "") == "1",
+            "guest_vlan_bridge_rule_count": self._asus_list_count(
+                raw.get("wgn_brif_rulelist", "")
+            ),
+            "guest_vlan_profile_rule_count": self._asus_list_count(
+                raw.get("gvlan_rulelist", "")
+            ),
+            "wan_tagging_mode": raw.get("switch_wantag", ""),
+            "wan_vlan_tag_configured": bool(wan_tag_id and wan_tag_id != "0"),
+            "source": "ssh",
+        }
+
+    def _ssh_dual_wan_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(DUAL_WAN_KEYS)
+
+        selected = [part for part in raw.get("wans_dualwan", "").split() if part]
+        primary_type = selected[0] if selected else "none"
+        secondary_type = selected[1] if len(selected) > 1 else "none"
+        active_unit = self._nvram_int(raw.get("wan_unit", ""))
+        uplinks: list[dict[str, Any]] = []
+        for unit, uplink_type in enumerate((primary_type, secondary_type)):
+            if uplink_type == "none":
+                continue
+            uplinks.append(
+                {
+                    "unit": unit,
+                    "type": uplink_type,
+                    "enabled": raw.get(f"wan{unit}_enable", "") == "1",
+                    "protocol": raw.get(f"wan{unit}_proto", ""),
+                    "state_code": self._nvram_int(raw.get(f"wan{unit}_state_t", "")),
+                    "aux_state_code": self._nvram_int(
+                        raw.get(f"wan{unit}_auxstate_t", "")
+                    ),
+                    "sb_state_code": self._nvram_int(
+                        raw.get(f"wan{unit}_sbstate_t", "")
+                    ),
+                    "active": active_unit == unit,
+                }
+            )
+        return {
+            "primary_uplink_type": primary_type,
+            "secondary_uplink_type": secondary_type,
+            "dual_wan_configured": secondary_type != "none",
+            "mode_code": raw.get("wans_mode", ""),
+            "load_balance_ratio": raw.get("wans_lb_ratio", ""),
+            "policy_routing_enabled": raw.get("wans_routing_enable", "") == "1",
+            "policy_rule_count": self._asus_list_count(
+                raw.get("wans_routing_rulelist", "")
+            ),
+            "available_uplink_types": [
+                part for part in raw.get("wans_cap", "").split() if part
+            ],
+            "active_unit": active_unit,
+            "uplinks": uplinks,
+            "source": "ssh",
+        }
+
+    def _ssh_wps_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(WPS_KEYS)
+        radios: list[dict[str, Any]] = []
+        for unit in WIRELESS_CONFIG_UNITS:
+            prefix = f"wl{unit}_"
+            if not raw.get(f"{prefix}ifname", "").strip():
+                continue
+            radios.append(
+                {
+                    "unit": unit,
+                    "band_family": self._wireless_band_family(raw.get(f"{prefix}nband", "")),
+                    "mode": raw.get(f"{prefix}wps_mode", ""),
+                    "config_state_code": self._nvram_int(raw.get(f"{prefix}wps_config_state", "")),
+                    "registrar_enabled": raw.get(f"{prefix}wps_reg", "").lower() == "enabled",
+                }
+            )
+        self._label_wireless_bands(radios)
+        return {
+            "enabled": raw.get("wps_enable_x", "") == "1" or raw.get("wps_enable", "") == "1",
+            "selected_band_code": self._nvram_int(raw.get("wps_band_x", "")),
+            "process_status_code": self._nvram_int(raw.get("wps_proc_status", "")),
+            "radios": radios,
+            "radio_count": len(radios),
+            "source": "ssh",
+        }
+
+    def _ssh_smart_connect_roaming_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(SMART_CONNECT_ROAMING_KEYS)
+            processes = ssh.run_command(SMART_CONNECT_PROCESS_COMMAND).stdout
+        process_tokens = {token for line in processes.splitlines() for token in line.split()}
+        radios: list[dict[str, Any]] = []
+        for unit in WIRELESS_CONFIG_UNITS:
+            prefix = f"wl{unit}_"
+            if not raw.get(f"{prefix}ifname", "").strip():
+                continue
+            radios.append(
+                {
+                    "unit": unit,
+                    "band_family": self._wireless_band_family(raw.get(f"{prefix}nband", "")),
+                    "roaming_rssi_threshold_dbm": self._nvram_int(raw.get(f"{prefix}user_rssi", "")),
+                }
+            )
+        self._label_wireless_bands(radios)
+        return {
+            "smart_connect_enabled": raw.get("smart_connect_x", "") not in {"", "0"},
+            "runtime_smart_connect_enabled": raw.get("scb_smart_connect_x", "") not in {"", "0"},
+            "steering_daemon_running": "bsd" in process_tokens,
+            "roaming_daemon_running": "roamast" in process_tokens,
+            "weak_rssi_difference_db": self._nvram_int(raw.get("rast_weak_rssi_diff", "")),
+            "radios": radios,
+            "radio_count": len(radios),
+            "source": "ssh",
+        }
+
+    def _ssh_wireless_advanced_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(WIRELESS_ADVANCED_KEYS)
+        radios: list[dict[str, Any]] = []
+        for unit in WIRELESS_CONFIG_UNITS:
+            prefix = f"wl{unit}_"
+            if not raw.get(f"{prefix}ifname", "").strip():
+                continue
+            radios.append(
+                {
+                    "unit": unit,
+                    "band_family": self._wireless_band_family(raw.get(f"{prefix}nband", "")),
+                    "wireless_mode_code": self._nvram_int(raw.get(f"{prefix}nmode_x", "")),
+                    "tx_power_percent": self._nvram_int(raw.get(f"{prefix}txpower", "")),
+                    "wifi_6_enabled": raw.get(f"{prefix}11ax", "") == "1",
+                    "beamforming_enabled": raw.get(f"{prefix}txbf", "") == "1",
+                    "mu_mimo_enabled": raw.get(f"{prefix}mumimo", "") == "1",
+                    "airtime_fairness_enabled": raw.get(f"{prefix}atf", "") == "1",
+                    "ofdma_mode_code": self._nvram_int(raw.get(f"{prefix}ofdma", "")),
+                    "twt_enabled": raw.get(f"{prefix}twt", "") == "1",
+                    "dfs_auto_channel_enabled": raw.get(f"{prefix}acs_dfs", "") == "1",
+                    "dfs_bandwidth_fallback_enabled": raw.get(f"{prefix}dfs_bw_fallback", "") == "1",
+                }
+            )
+        self._label_wireless_bands(radios)
+        return {"radios": radios, "radio_count": len(radios), "source": "ssh"}
+
     def _ssh_guest_networks_data(self) -> dict[str, Any]:
         with self._managed_ssh() as ssh:
             raw = ssh.get_nvram_many(GUEST_KEYS)
@@ -849,7 +1515,7 @@ class RouterService:
                 "https_port": raw.get("https_lanport", ""),
             },
             "ssh_admin": {
-                "enabled": raw.get("sshd_enable", "") == "1",
+                "enabled": raw.get("sshd_enable", "") in {"1", "2"},
                 "port": raw.get("sshd_port", ""),
                 "wan_enabled": raw.get("sshd_wan", "") == "1",
             },
@@ -869,12 +1535,207 @@ class RouterService:
             for process in parse_process_table(processes_raw)
             if any(token in process["command"] for token in ("openvpn", "vpn", "wg"))
         ]
+        wireguard_client_enabled = any(
+            raw.get(key, "") == "1" for key in WIREGUARD_CLIENT_ENABLE_KEYS
+        )
         return {
             "openvpn_server_enabled": raw.get("vpn_serverx_start_x", "") == "1",
-            "vpn_client_profiles_configured": bool(raw.get("vpnc_clientlist", "")),
+            "vpn_client_profiles_configured": (
+                bool(raw.get("vpnc_clientlist", "")) or wireguard_client_enabled
+            ),
             "wireguard_enabled": raw.get("wgs_enable", "") == "1",
+            "wireguard_client_enabled": wireguard_client_enabled,
             "processes": processes,
             "process_count": len(processes),
+            "source": "ssh",
+        }
+
+    def _ssh_vpn_client_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(VPN_CLIENT_STATUS_KEYS)
+            active_interfaces = set(
+                ssh.run_command("wg show interfaces 2>/dev/null || true").stdout.split()
+            )
+            wireguard_clients = [
+                {"unit": unit, "enabled": raw.get(f"wgc{unit}_enable", "") == "1"}
+                for unit in range(1, 6)
+                if raw.get(f"wgc{unit}_enable", "").strip()
+            ]
+            wireguard_runtime: list[dict[str, Any]] = []
+            now_epoch = int(time.time())
+            for client in wireguard_clients:
+                if not client["enabled"]:
+                    continue
+                unit = int(client["unit"])
+                interface = f"wgc{unit}"
+                runtime_active = interface in active_interfaces
+                latest_handshake = 0
+                rx_bytes = 0
+                tx_bytes = 0
+                if runtime_active:
+                    latest_raw = ssh.run_command(
+                        f"wg show {interface} latest-handshakes 2>/dev/null | "
+                        "awk '{if ($2 > latest) latest=$2} END {print latest+0}'"
+                    ).stdout.strip()
+                    transfer_raw = ssh.run_command(
+                        f"wg show {interface} transfer 2>/dev/null | "
+                        "awk '{rx+=$2; tx+=$3} END {print rx+0, tx+0}'"
+                    ).stdout.split()
+                    latest_handshake = self._nvram_int(latest_raw) or 0
+                    if len(transfer_raw) >= 2:
+                        rx_bytes = self._nvram_int(transfer_raw[0]) or 0
+                        tx_bytes = self._nvram_int(transfer_raw[1]) or 0
+                wireguard_runtime.append(
+                    {
+                        "unit": unit,
+                        "runtime_active": runtime_active,
+                        "latest_handshake_age_seconds": (
+                            max(0, now_epoch - latest_handshake)
+                            if latest_handshake > 0
+                            else None
+                        ),
+                        "rx_bytes": rx_bytes,
+                        "tx_bytes": tx_bytes,
+                    }
+                )
+        return {
+            "master_enabled": raw.get("VPNClient_enable", "") == "1",
+            "legacy_profile_count": self._asus_list_count(raw.get("vpnc_clientlist", "")),
+            "wireguard_client_count": len(wireguard_clients),
+            "wireguard_enabled_count": sum(1 for item in wireguard_clients if item["enabled"]),
+            "wireguard_clients": wireguard_clients,
+            "wireguard_runtime": wireguard_runtime,
+            "vpn_fusion_policy_record_count": self._asus_list_count(
+                raw.get("vpnc_dev_policy_list", "")
+            ),
+            "source": "ssh",
+        }
+
+    def _ssh_wan_watchdog_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(WAN_WATCHDOG_KEYS)
+            processes_raw = ssh.run_command(WAN_WATCHDOG_PROCESS_COMMAND).stdout
+        process_commands = [
+            str(process.get("command", ""))
+            for process in parse_process_table(processes_raw)
+        ]
+        return {
+            "enabled": raw.get("wandog_enable", "") == "1",
+            "interval_value": self._nvram_int(raw.get("wandog_interval", "")),
+            "max_failures": self._nvram_int(raw.get("wandog_maxfail", "")),
+            "delay_value": self._nvram_int(raw.get("wandog_delay", "")),
+            "fallback_count": self._nvram_int(raw.get("wandog_fb_count", "")),
+            "fallback_restart_enabled": raw.get("wandog_fb_restart", "") == "1",
+            "dns_probe_enabled": raw.get("dns_probe", "") == "1",
+            "dns_probe_timeout_value": self._nvram_int(raw.get("dns_probe_timeout", "")),
+            "dns_probe_target_configured": bool(raw.get("dns_probe_host", "").strip()),
+            "wanduck_running": any("wanduck" in command for command in process_commands),
+            "source": "ssh",
+        }
+
+    def _ssh_logging_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(LOGGING_KEYS)
+            processes_raw = ssh.run_command(LOGGING_PROCESS_COMMAND).stdout
+        process_commands = [
+            str(process.get("command", ""))
+            for process in parse_process_table(processes_raw)
+        ]
+        remote_destination = raw.get("log_ipaddr", "").strip()
+        persistent_path = raw.get("log_path", "").strip()
+        return {
+            "syslogd_running": any("syslogd" in command for command in process_commands),
+            "klogd_running": any("klogd" in command for command in process_commands),
+            "remote_syslog_configured": bool(
+                remote_destination and remote_destination not in {"0.0.0.0", "::"}
+            ),
+            "remote_syslog_port": self._nvram_int(raw.get("log_port", "")),
+            "local_log_level_code": self._nvram_int(raw.get("log_level", "")),
+            "local_log_size_kb": self._nvram_int(raw.get("log_size", "")),
+            "persistent_logging_configured": bool(
+                persistent_path and not persistent_path.startswith("/tmp/")
+            ),
+            "source": "ssh",
+        }
+
+    def _ssh_traffic_monitoring_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(TRAFFIC_MONITORING_KEYS)
+            processes_raw = ssh.run_command(TRAFFIC_MONITORING_PROCESS_COMMAND).stdout
+        process_commands = [
+            str(process.get("command", "")).lower()
+            for process in parse_process_table(processes_raw)
+        ]
+        return {
+            "traffic_analyzer_enabled": raw.get("bwdpi_db_enable", "") == "1",
+            "web_history_enabled": raw.get("bwdpi_wh_enable", "") == "1",
+            "app_analysis_enabled": raw.get("apps_analysis", "") == "1",
+            "bandwidth_stats_enabled": raw.get("rstats_enable", "") == "1",
+            "bandwidth_stats_process_running": any(
+                "rstats" in command for command in process_commands
+            ),
+            "connection_stats_enabled": raw.get("cstats_enable", "") == "1",
+            "connection_stats_process_running": any(
+                "cstats" in command for command in process_commands
+            ),
+            "source": "ssh",
+        }
+
+    def _ssh_auxiliary_services_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(AUXILIARY_SERVICES_KEYS)
+            processes_raw = ssh.run_command(AUXILIARY_SERVICES_PROCESS_COMMAND).stdout
+        process_commands = [
+            str(process.get("command", "")).lower()
+            for process in parse_process_table(processes_raw)
+        ]
+
+        def running(*markers: str) -> bool:
+            return any(
+                any(marker in command for marker in markers)
+                for command in process_commands
+            )
+
+        return {
+            "ftp": {
+                "enabled": raw.get("enable_ftp", "") == "1",
+                "mode_code": self._nvram_int(raw.get("st_ftp_mode", "")),
+                "wan_access_enabled": raw.get("ftp_wanac", "") == "1",
+                "tls_enabled": raw.get("ftp_tls", "") == "1",
+                "process_running": running("vsftpd", "ftpd"),
+            },
+            "media_server": {
+                "enabled": raw.get("dms_enable", "") == "1",
+                "process_running": running("minidlna"),
+            },
+            "webdav": {
+                "enabled": raw.get("enable_webdav", "") == "1",
+                "aidisk_enabled": raw.get("webdav_aidisk", "") == "1",
+                "proxy_enabled": raw.get("webdav_proxy", "") == "1",
+            },
+            "cloud_sync_enabled": raw.get("enable_cloudsync", "") == "1",
+            "usb_modem": {
+                "master_flag_enabled": raw.get("modem_enable", "") == "1",
+                "runtime_running": raw.get("modem_running", "") == "1",
+                "wan_ready": any(
+                    raw.get(key, "") == "1"
+                    for key in ("wan0_is_usb_modem_ready", "wan1_is_usb_modem_ready")
+                ),
+            },
+            "usb_printer": {
+                "enabled": raw.get("usb_printer", "") == "1",
+                "status_code": self._nvram_int(raw.get("printer_status_t", "")),
+                "process_running": running("u2ec", "lpd", "p910"),
+            },
+            "pptp_server": {
+                "enabled": raw.get("pptpd_enable", "") == "1",
+                "process_running": running("pptpd"),
+            },
+            "ipsec": {
+                "server_enabled": raw.get("ipsec_server_enable", "") == "1",
+                "client_enabled": raw.get("ipsec_client_enable", "") == "1",
+                "process_running": running("charon", "pluto", "ipsec"),
+            },
             "source": "ssh",
         }
 
@@ -897,6 +1758,23 @@ class RouterService:
             "provider": raw.get("ddns_server_x", ""),
             "updated": raw.get("ddns_updated", ""),
             "status": raw.get("ddns_status", ""),
+            "source": "ssh",
+        }
+
+    def _ssh_firmware_update_status_data(self) -> dict[str, Any]:
+        with self._managed_ssh() as ssh:
+            raw = ssh.get_nvram_many(FIRMWARE_UPDATE_KEYS)
+        update_flag = self._nvram_int(raw.get("webs_state_flag", ""))
+        return {
+            "automatic_update_enabled": raw.get("webs_update_enable", "") == "1",
+            "beta_channel_enabled": raw.get("webs_update_beta", "") == "1",
+            "check_completed": raw.get("webs_state_update", "") == "1",
+            "update_flag_code": update_flag,
+            "update_available": update_flag in {1, 2},
+            "forced_update": update_flag == 2,
+            "error_code": self._nvram_int(raw.get("webs_state_error", "")),
+            "reported_version": raw.get("webs_state_info", ""),
+            "update_level_code": self._nvram_int(raw.get("webs_state_level", "")),
             "source": "ssh",
         }
 
@@ -978,6 +1856,8 @@ class RouterService:
             partitions_raw = ssh.run_command(PARTITIONS_COMMAND).stdout
             mounts_raw = ssh.run_command(MOUNTS_COMMAND).stdout
             df_raw = ssh.run_command(DF_COMMAND).stdout
+            disk_monitor_raw = ssh.get_nvram_many(USB_DISK_MONITOR_KEYS)
+            disk_monitor_processes = ssh.run_command(USB_DISK_MONITOR_PROCESS_COMMAND).stdout
         partitions = parse_proc_partitions(partitions_raw)
         mounts = parse_mount_output(mounts_raw)
         filesystems = parse_df_output(df_raw)
@@ -1001,6 +1881,16 @@ class RouterService:
             "mounts": usb_mounts,
             "filesystems": usb_filesystems,
             "usb_present": bool(usb_partitions or usb_mounts or usb_filesystems),
+            "disk_monitor": {
+                "running": bool(disk_monitor_processes.strip()),
+                "status_code": self._nvram_int(disk_monitor_raw.get("diskmon_status", "")),
+                "policy": disk_monitor_raw.get("diskmon_policy", ""),
+                "frequency_value": self._nvram_int(disk_monitor_raw.get("diskmon_freq", "")),
+                "force_stopped": disk_monitor_raw.get("diskmon_force_stop", "") == "1",
+                "notification_enabled": disk_monitor_raw.get("pushnotify_diskmonitor", "") == "1",
+                "idle_enabled": disk_monitor_raw.get("usb_idle_enable", "") == "1",
+                "idle_timeout_value": self._nvram_int(disk_monitor_raw.get("usb_idle_timeout", "")),
+            },
             "source": "ssh",
         }
 
@@ -1040,6 +1930,51 @@ class RouterService:
         data = self._ssh_wireless_overview_data()
         return tool_ok("asuswrt_wireless_overview", data=data)
 
+    async def firewall_status(self) -> dict[str, Any]:
+        data = self._ssh_firewall_status_data()
+        return tool_ok("asuswrt_firewall_status", data=data)
+
+    async def wireless_config(self) -> dict[str, Any]:
+        data = self._ssh_wireless_config_data()
+        return tool_ok("asuswrt_wireless_config", data=data)
+
+    async def qos_status(self) -> dict[str, Any]:
+        data = self._ssh_qos_status_data()
+        return tool_ok("asuswrt_qos_status", data=data)
+
+    async def aiprotection_status(self) -> dict[str, Any]:
+        data = self._ssh_aiprotection_status_data()
+        return tool_ok("asuswrt_aiprotection_status", data=data)
+
+    async def aimesh_status(self) -> dict[str, Any]:
+        data = self._ssh_aimesh_status_data()
+        return tool_ok("asuswrt_aimesh_status", data=data)
+
+    async def vlan_guest_status(self) -> dict[str, Any]:
+        data = self._ssh_vlan_guest_status_data()
+        return tool_ok("asuswrt_vlan_guest_status", data=data)
+
+    async def dual_wan_status(self) -> dict[str, Any]:
+        data = self._ssh_dual_wan_status_data()
+        return tool_ok("asuswrt_dual_wan_status", data=data)
+
+    async def wps_status(self) -> dict[str, Any]:
+        data = self._ssh_wps_status_data()
+        return tool_ok("asuswrt_wps_status", data=data)
+
+    async def smart_connect_roaming_status(self) -> dict[str, Any]:
+        data = self._ssh_smart_connect_roaming_status_data()
+        return tool_ok("asuswrt_smart_connect_roaming_status", data=data)
+
+    async def wireless_advanced(self) -> dict[str, Any]:
+        data = self._ssh_wireless_advanced_data()
+        return tool_ok("asuswrt_wireless_advanced", data=data)
+
+    async def wireless_schedule_status(self) -> dict[str, Any]:
+        data = self._ssh_wireless_schedule_status_data()
+        return tool_ok("asuswrt_wireless_schedule_status", data=data)
+
+
     async def guest_networks(self) -> dict[str, Any]:
         data = self._ssh_guest_networks_data()
         return tool_ok("asuswrt_guest_networks", data=data)
@@ -1072,6 +2007,14 @@ class RouterService:
         data = self._ssh_dns_config_data()
         return tool_ok("asuswrt_dns_config", data=data)
 
+    async def dns_filter_status(self) -> dict[str, Any]:
+        data = self._ssh_dns_filter_status_data()
+        return tool_ok("asuswrt_dns_filter_status", data=data)
+
+    async def dns_privacy_status(self) -> dict[str, Any]:
+        data = self._ssh_dns_privacy_status_data()
+        return tool_ok("asuswrt_dns_privacy_status", data=data)
+
     async def ipv6_status(self) -> dict[str, Any]:
         data = self._ssh_ipv6_status_data()
         return tool_ok("asuswrt_ipv6_status", data=data)
@@ -1092,6 +2035,27 @@ class RouterService:
         data = self._ssh_vpn_overview_data()
         return tool_ok("asuswrt_vpn_overview", data=data)
 
+    async def vpn_client_status(self) -> dict[str, Any]:
+        data = self._ssh_vpn_client_status_data()
+        return tool_ok("asuswrt_vpn_client_status", data=data)
+
+    async def wan_watchdog_status(self) -> dict[str, Any]:
+        data = self._ssh_wan_watchdog_status_data()
+        return tool_ok("asuswrt_wan_watchdog_status", data=data)
+
+    async def logging_status(self) -> dict[str, Any]:
+        data = self._ssh_logging_status_data()
+        return tool_ok("asuswrt_logging_status", data=data)
+
+
+    async def traffic_monitoring_status(self) -> dict[str, Any]:
+        data = self._ssh_traffic_monitoring_status_data()
+        return tool_ok("asuswrt_traffic_monitoring_status", data=data)
+
+    async def auxiliary_services_status(self) -> dict[str, Any]:
+        data = self._ssh_auxiliary_services_status_data()
+        return tool_ok("asuswrt_auxiliary_services_status", data=data)
+
     async def upnp_status(self) -> dict[str, Any]:
         data = self._ssh_upnp_status_data()
         return tool_ok("asuswrt_upnp_status", data=data)
@@ -1099,6 +2063,10 @@ class RouterService:
     async def ddns_status(self) -> dict[str, Any]:
         data = self._ssh_ddns_status_data()
         return tool_ok("asuswrt_ddns_status", data=data)
+
+    async def firmware_update_status(self) -> dict[str, Any]:
+        data = self._ssh_firmware_update_status_data()
+        return tool_ok("asuswrt_firmware_update_status", data=data)
 
     async def interface_stats(self) -> dict[str, Any]:
         data = self._ssh_interface_stats_data()

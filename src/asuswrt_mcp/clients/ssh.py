@@ -151,7 +151,7 @@ class AsusRouterSshClient:
         safe_keys = [validate_nvram_key(key) for key in keys]
         key_list = " ".join(shlex.quote(key) for key in safe_keys)
         result = self._run_shell(
-            f"for k in {key_list}; do printf '%s=' \"$k\"; nvram get \"$k\"; done"
+            f"for k in {key_list}; do printf '%s=' \"$k\"; nvram get \"$k\"; printf '\\n'; done"
         )
         values = {key: "" for key in safe_keys}
         for line in result.stdout.splitlines():

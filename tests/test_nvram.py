@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from asuswrt_mcp.errors import RouterOperationError
+
 from asuswrt_mcp.nvram import (
     format_dhcp_staticlist,
     parse_dhcp_staticlist,
@@ -89,3 +91,67 @@ def test_remove_port_forwarding_rule() -> None:
     assert changed is True
     assert rules == []
     assert new_raw == ""
+
+
+def test_parse_port_forwarding_preserves_existing_router_label_outside_write_allowlist() -> None:
+    raw = "<PXPLAY 9295 UDP/TCP>9295>192.168.1.10>9295>BOTH>>"
+
+    parsed = parse_port_forwarding(raw)
+
+    assert parsed[0].name == "PXPLAY 9295 UDP/TCP"
+
+
+def test_upsert_port_forwarding_preserves_existing_router_label_outside_write_allowlist() -> None:
+    raw = "<PXPLAY 9295 UDP/TCP>9295>192.168.1.10>9295>BOTH>>"
+
+    new_raw, changed, rules = upsert_port_forwarding_rule(
+        raw,
+        name="Web",
+        ip="192.168.1.20",
+        port="443",
+        protocol="TCP",
+        port_external="8443",
+    )
+
+    assert changed is True
+    assert rules[0].name == "PXPLAY 9295 UDP/TCP"
+    assert "<PXPLAY 9295 UDP/TCP>9295>192.168.1.10>9295>BOTH>>" in new_raw
+
+
+def test_parse_dhcp_staticlist_preserves_existing_router_label_outside_write_allowlist() -> None:
+    raw = "<AA:BB:CC:DD:EE:FF>192.168.1.20>Printer/Office"
+
+    parsed = parse_dhcp_staticlist(raw)
+
+    assert parsed[0].name == "Printer/Office"
+
+
+
+def test_new_port_forwarding_label_still_uses_strict_write_validation() -> None:
+    try:
+        upsert_port_forwarding_rule(
+            "",
+            name="New/Rule",
+            ip="192.168.1.20",
+            port="443",
+            protocol="TCP",
+            port_external="8443",
+        )
+    except RouterOperationError as exc:
+        assert exc.code == "invalid_label"
+    else:
+        raise AssertionError("new port-forward labels outside the write allowlist must be rejected")
+
+
+def test_new_dhcp_label_still_uses_strict_write_validation() -> None:
+    try:
+        upsert_dhcp_reservation(
+            "",
+            mac="AA:BB:CC:DD:EE:FF",
+            ip="192.168.1.20",
+            name="New/Reservation",
+        )
+    except RouterOperationError as exc:
+        assert exc.code == "invalid_label"
+    else:
+        raise AssertionError("new DHCP labels outside the write allowlist must be rejected")

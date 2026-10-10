@@ -68,6 +68,15 @@ async def asuswrt_wan_details() -> dict:
 async def asuswrt_dns_config() -> dict:
     return await _call("asuswrt_dns_config", router_service.dns_config())
 
+@mcp.tool(description="Inspect DNS Filter/Director enablement and redacted configuration counts.")
+async def asuswrt_dns_filter_status() -> dict:
+    return await _call("asuswrt_dns_filter_status", router_service.dns_filter_status())
+
+
+@mcp.tool(description="Inspect DNS-over-TLS and DNSSEC posture using redacted rule counts only.")
+async def asuswrt_dns_privacy_status() -> dict:
+    return await _call("asuswrt_dns_privacy_status", router_service.dns_privacy_status())
+
 
 @mcp.tool(description="Inspect IPv6 service, prefix, and router address details.")
 async def asuswrt_ipv6_status() -> dict:
@@ -124,10 +133,87 @@ async def asuswrt_wireless_overview() -> dict:
         router_service.wireless_overview(),
     )
 
+@mcp.tool(description="Inspect firewall enablement and safe protection settings.")
+async def asuswrt_firewall_status() -> dict:
+    return await _call("asuswrt_firewall_status", router_service.firewall_status())
+
+
+@mcp.tool(description="Inspect per-radio Wi-Fi channel and security metadata without credentials.")
+async def asuswrt_wireless_config() -> dict:
+    return await _call("asuswrt_wireless_config", router_service.wireless_config())
+
+
+@mcp.tool(description="Inspect QoS enablement, configured mode, bandwidth, and redacted rule counts.")
+async def asuswrt_qos_status() -> dict:
+    return await _call("asuswrt_qos_status", router_service.qos_status())
+
+
+@mcp.tool(description="Inspect AiProtection feature enablement and non-secret DPI signature versions.")
+async def asuswrt_aiprotection_status() -> dict:
+    return await _call(
+        "asuswrt_aiprotection_status",
+        router_service.aiprotection_status(),
+    )
+
+
+@mcp.tool(description="Inspect AiMesh node counts and controller readiness without node identifiers.")
+async def asuswrt_aimesh_status() -> dict:
+    return await _call("asuswrt_aimesh_status", router_service.aimesh_status())
+
+
+@mcp.tool(description="Inspect VLAN and guest segmentation state using redacted counts only.")
+async def asuswrt_vlan_guest_status() -> dict:
+    return await _call(
+        "asuswrt_vlan_guest_status",
+        router_service.vlan_guest_status(),
+    )
+
+
+@mcp.tool(description="Inspect Dual-WAN selection and uplink health without WAN addresses or policy payloads.")
+async def asuswrt_dual_wan_status() -> dict:
+    return await _call(
+        "asuswrt_dual_wan_status",
+        router_service.dual_wan_status(),
+    )
+
+
+@mcp.tool(description="Inspect WPS enablement and per-radio status without PIN material.")
+async def asuswrt_wps_status() -> dict:
+    return await _call("asuswrt_wps_status", router_service.wps_status())
+
+
+@mcp.tool(description="Inspect Smart Connect and roaming state without steering policies or client data.")
+async def asuswrt_smart_connect_roaming_status() -> dict:
+    return await _call(
+        "asuswrt_smart_connect_roaming_status",
+        router_service.smart_connect_roaming_status(),
+    )
+
+
+@mcp.tool(description="Inspect advanced per-radio Wi-Fi feature settings without credentials.")
+async def asuswrt_wireless_advanced() -> dict:
+    return await _call("asuswrt_wireless_advanced", router_service.wireless_advanced())
+
+
+@mcp.tool(description="Inspect sanitized per-radio Wi-Fi scheduling state without raw v2 schedule payloads.")
+async def asuswrt_wireless_schedule_status() -> dict:
+    return await _call(
+        "asuswrt_wireless_schedule_status",
+        router_service.wireless_schedule_status(),
+    )
+
 
 @mcp.tool(description="List guest Wi-Fi networks and LAN-access state.")
 async def asuswrt_guest_networks() -> dict:
     return await _call("asuswrt_guest_networks", router_service.guest_networks())
+
+
+@mcp.tool(description="Inspect read-only firmware update status without checking, downloading, or flashing firmware.")
+async def asuswrt_firmware_update_status() -> dict:
+    return await _call(
+        "asuswrt_firmware_update_status",
+        router_service.firmware_update_status(),
+    )
 
 
 @mcp.tool(description="Inspect per-interface RX/TX counters from /proc/net/dev.")
@@ -163,7 +249,7 @@ async def asuswrt_samba_status() -> dict:
     return await _call("asuswrt_samba_status", router_service.samba_status())
 
 
-@mcp.tool(description="Inspect USB/storage-related partitions, mounts, and filesystems.")
+@mcp.tool(description="Inspect USB/storage partitions, mounts, filesystems, and sanitized disk-monitor health without device paths or identifiers.")
 async def asuswrt_usb_overview() -> dict:
     return await _call("asuswrt_usb_overview", router_service.usb_overview())
 
@@ -196,6 +282,40 @@ async def asuswrt_policy_routing() -> dict:
 @mcp.tool(description="Inspect configured VPN modes and related processes.")
 async def asuswrt_vpn_overview() -> dict:
     return await _call("asuswrt_vpn_overview", router_service.vpn_overview())
+
+
+@mcp.tool(description="Inspect sanitized VPN client counts, WireGuard slot/runtime health, and VPN Fusion policy counts without credentials, endpoints, or peer details.")
+async def asuswrt_vpn_client_status() -> dict:
+    return await _call("asuswrt_vpn_client_status", router_service.vpn_client_status())
+
+
+@mcp.tool(description="Inspect WAN watchdog and DNS-probe posture without returning probe targets or sensitive connectivity details.")
+async def asuswrt_wan_watchdog_status() -> dict:
+    return await _call(
+        "asuswrt_wan_watchdog_status",
+        router_service.wan_watchdog_status(),
+    )
+
+
+@mcp.tool(description="Inspect local and remote syslog posture without log destinations, paths, or process command details.")
+async def asuswrt_logging_status() -> dict:
+    return await _call("asuswrt_logging_status", router_service.logging_status())
+
+
+@mcp.tool(description="Inspect sanitized traffic analyzer, web-history, and rstats/cstats posture without traffic or history records.")
+async def asuswrt_traffic_monitoring_status() -> dict:
+    return await _call(
+        "asuswrt_traffic_monitoring_status",
+        router_service.traffic_monitoring_status(),
+    )
+
+
+@mcp.tool(description="Inspect auxiliary router service posture without credentials, paths, clients, or raw service configuration.")
+async def asuswrt_auxiliary_services_status() -> dict:
+    return await _call(
+        "asuswrt_auxiliary_services_status",
+        router_service.auxiliary_services_status(),
+    )
 
 
 @mcp.tool(description="Inspect UPnP enablement and housekeeping settings.")

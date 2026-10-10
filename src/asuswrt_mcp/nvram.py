@@ -43,6 +43,12 @@ def parse_angle_records(value: str, fields: int) -> list[list[str]]:
     return records
 
 
+def _observed_label(value: str) -> str:
+    """Preserve router-supplied labels; write paths validate new labels separately."""
+
+    return value.strip()
+
+
 def parse_dhcp_staticlist(value: str) -> list[DhcpReservation]:
     records = []
     for mac, ip, name in parse_angle_records(value, 3):
@@ -51,7 +57,7 @@ def parse_dhcp_staticlist(value: str) -> list[DhcpReservation]:
                 DhcpReservation(
                     mac=normalize_mac(mac),
                     ip=validate_ip(ip),
-                    name=validate_label(name, "name"),
+                    name=_observed_label(name),
                 )
             )
     return records
@@ -97,7 +103,7 @@ def parse_port_forwarding(value: str) -> list[PortForwardRule]:
         if ip and port_external and protocol:
             records.append(
                 PortForwardRule(
-                    name=validate_label(name, "name"),
+                    name=_observed_label(name),
                     port_external=validate_port_range(port_external, "port_external"),
                     ip=validate_ip(ip),
                     port=validate_port_range(port or port_external, "port"),
